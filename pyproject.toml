@@ -1,0 +1,12 @@
+[project]
+name = "cs_4100_project"
+version = "0.1.0"
+description = "Safest route"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "mapillary>=1.0.15",
+    "numpy>=2.3.4",
+    "pandas>=2.3.3",
+    "polars>=1.34.0",
+]
