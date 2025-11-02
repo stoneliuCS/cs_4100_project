@@ -5,9 +5,15 @@ from datetime import datetime
 from pathlib import Path
 import os
 
+def get_image_metadata(image_id : int, res=256):
+    url = controller.image.get_image_thumbnail_controller(image_id=str(image_id), resolution=res)
+    detections = mly.get_detections_with_image_id(image_id=image_id)
+    return url, detections
 
 def create_image_dataset(lat: float, lng: float, radius: float) -> pd.DataFrame:
-    """Creates an Image Dataset based off the latitude, longitude, and radius"""
+    """Creates an image Dataset of the nearest images from the given latitude and longitude
+    and radius in meters.
+    """
     # Much larger area
     geo_jsons = mly.get_image_close_to(lat, lng, radius=radius, fields="all")
     data = geo_jsons.features
@@ -17,16 +23,20 @@ def create_image_dataset(lat: float, lng: float, radius: float) -> pd.DataFrame:
         "longitude": [],
         "latitude": [],
         "image_id": [],
+        "sequence_id": [],
     }
     for image_data in data:
         image_id = image_data.properties.id
         epoch_time = image_data.properties.captured_at
         coordinates = image_data.geometry.coordinates
+        sequence_id = image_data.properties.sequence_id
+        url, objects = get_image_metadata(image_id)
         schema["time_epoch"].append(epoch_time)
         schema["datetime"].append(datetime.fromtimestamp(epoch_time / 1000))
         schema["longitude"].append(coordinates.longitude)
         schema["latitude"].append(coordinates.latitude)
         schema["image_id"].append(image_id)
+        schema["sequence_id"].append(sequence_id)
     return pd.DataFrame(schema)
 
 
