@@ -8,6 +8,7 @@ import pandas as pd
 import requests
 
 CSV_PATH = Path(__file__).parent / "crime.csv"
+GEOCODED_PATH = Path(__file__).parent / "geocoded_crimes.csv"
 CRIMES = [
     "Other Larceny",
     "Fraud",
@@ -569,6 +570,7 @@ def main():
         .reset_index()
     )
     geo_coded_crime_df = batch_geo_encoding_crimes(aggregated_crimes)
+    geo_coded_crime_df.to_csv(GEOCODED_PATH)
 
 
 if __name__ == "__main__":

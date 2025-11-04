@@ -8,6 +8,9 @@ PIP := $(VENV_DIR)/bin/pip
 image_downloader:
 	$(PKG) run --env-file .env ./data/image_data.py
 
+crime_pipeline:
+	$(PKG) run --env-file .env ./data/crime_data.py
+
 # Installs all project dependencies
 install:
 	$(PKG) sync 
