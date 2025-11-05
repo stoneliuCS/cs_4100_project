@@ -5,10 +5,16 @@ from datetime import datetime
 from pathlib import Path
 import os
 
-def get_image_metadata(image_id : int, res=256):
-    url = controller.image.get_image_thumbnail_controller(image_id=str(image_id), resolution=res)
+IMAGE_CSV_PATH = Path(__file__).parent / "./image_data.csv"
+
+
+def get_image_metadata(image_id: int, res=256):
+    url = controller.image.get_image_thumbnail_controller(
+        image_id=str(image_id), resolution=res
+    )
     detections = mly.get_detections_with_image_id(image_id=image_id)
     return url, detections
+
 
 def create_image_dataset(lat: float, lng: float, radius: float) -> pd.DataFrame:
     """Creates an image Dataset of the nearest images from the given latitude and longitude
@@ -40,14 +46,13 @@ def create_image_dataset(lat: float, lng: float, radius: float) -> pd.DataFrame:
     return pd.DataFrame(schema)
 
 
-def main():
+def run_image_dataset_creation():
     NORTHEASTERN_UNI_LAT_LNG = [42.3398, -71.0892]
     RADIUS_METERS = 10000
-    CSV_PATH = Path(__file__).parent / "./image_data.csv"
     image_dataset = create_image_dataset(
         NORTHEASTERN_UNI_LAT_LNG[0], NORTHEASTERN_UNI_LAT_LNG[1], RADIUS_METERS
     )
-    image_dataset.to_csv(CSV_PATH)
+    image_dataset.to_csv(IMAGE_CSV_PATH)
 
 
 if __name__ == "__main__":
@@ -55,4 +60,4 @@ if __name__ == "__main__":
     if access_token is None:
         raise RuntimeError("MAPILLARY_ACCESS_TOKEN is undefined")
     mly.set_access_token(access_token)
-    main()
+    run_image_dataset_creation()

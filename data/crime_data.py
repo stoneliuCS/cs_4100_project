@@ -479,7 +479,7 @@ def assign_crime_scores(row):
 
 def batch_geo_encoding_crimes(aggregated_crimes: pd.DataFrame) -> pd.DataFrame:
     # Transform the aggregated_crimes to be in the format of the geo_encoding API
-    transformed_df = aggregated_crimes[["Block Address", "City", "Zip Code"]]
+    transformed_df = aggregated_crimes[["id", "Block Address", "City", "Zip Code"]]
     transformed_df["state"] = "MA"
     transformed_df = transformed_df.rename(
         columns={"Block Address": "address", "City": "city", "Zip Code": "zip"}
@@ -515,7 +515,19 @@ def batch_geo_encoding_crimes(aggregated_crimes: pd.DataFrame) -> pd.DataFrame:
         URL = "https://geocoding.geo.census.gov/geocoder/locations/addressbatch"
         r = requests.post(URL, files=files, params=params)
         if r.status_code == 200:
-            df = pd.read_csv(io.StringIO(r.content.decode()))
+            column_names = [
+                "row_id",
+                "Input_Address",
+                "Match_Status",
+                "Match_Type",
+                "Matched_Address",
+                "Coordinates",
+                "TIGER_Line_ID",
+                "Side",
+            ]
+            df = pd.read_csv(
+                io.StringIO(r.content.decode()), header=None, names=column_names
+            )
             return df
         else:
             raise RuntimeError("Error:", r.status_code, r.text)
@@ -531,7 +543,7 @@ def batch_geo_encoding_crimes(aggregated_crimes: pd.DataFrame) -> pd.DataFrame:
     return geocoded_df
 
 
-def main():
+def run_crime_dataset_creation():
     if not CSV_PATH.exists():
         raise RuntimeError(
             f"{CSV_PATH} not found, please download it here: https://boston-pd-crime-hub-boston.hub.arcgis.com/datasets/d42bd4040bca419a824ae5062488aced/explore"
@@ -554,6 +566,11 @@ def main():
     ]
     crime_dataframe: pd.DataFrame = crime_dataframe[select_columns]
     crime_dataframe["Crime Score"] = crime_dataframe.apply(assign_crime_scores, axis=1)
+    bins = [0, 4, 8, 12, 16, 20, 24]
+    labels = ["0-4", "4-8", "8-12", "12-16", "16-20", "20-24"]
+    crime_dataframe["Interval of Day"] = pd.cut(
+        crime_dataframe["Hour of Day"], bins=bins, labels=labels, right=False
+    )
     aggregated_crimes = (
         crime_dataframe.groupby(
             [
@@ -561,17 +578,15 @@ def main():
                 "City",
                 "Zip Code",
                 "Neighborhood",
-                "Hour of Day",
-                "Crime",
-                "Crime Category",
-            ]
+                "Interval of Day",
+            ],
+            observed=True,
         )["Crime Score"]
         .sum()
         .reset_index()
     )
-    geo_coded_crime_df = batch_geo_encoding_crimes(aggregated_crimes)
-    geo_coded_crime_df.to_csv(GEOCODED_PATH)
+    aggregated_crimes.to_csv(GEOCODED_PATH)
 
 
 if __name__ == "__main__":
-    main()
+    run_crime_dataset_creation()
