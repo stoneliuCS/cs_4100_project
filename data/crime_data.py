@@ -8,7 +8,7 @@ import pandas as pd
 import requests
 
 CSV_PATH = Path(__file__).parent / "crime.csv"
-GEOCODED_PATH = Path(__file__).parent / "geocoded_crimes.csv"
+AGGREGATED_CRIMES_PATH = Path(__file__).parent / "aggregated_crimes.csv"
 CRIMES = [
     "Other Larceny",
     "Fraud",
@@ -585,7 +585,7 @@ def run_crime_dataset_creation():
         .sum()
         .reset_index()
     )
-    aggregated_crimes.to_csv(GEOCODED_PATH)
+    aggregated_crimes.to_csv(AGGREGATED_CRIMES_PATH)
 
 
 if __name__ == "__main__":
