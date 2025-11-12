@@ -2,6 +2,7 @@ from pathlib import Path
 from networkx.classes.multidigraph import MultiDiGraph
 import osmnx as ox
 import pandas as pd
+import geocoding.block_sampling as bs
 
 GRAPH_PATH = Path(__file__).parent / Path("boston_walk.graphml")
 
@@ -37,9 +38,12 @@ def assign_crime_score_to_street_segment(
     crime_data: pd.DataFrame, G: MultiDiGraph, time_of_day: int
 ):
     # Filter out all the addresses with blocks.
-    crimes_with_block = crime_data[crime_data["Block Address"].str.contains("BLOCK")]
-    crimes_with_no_block = crime_data[
-        ~crime_data["Block Address"].str.contains("BLOCK")
+    geocoded_data = bs.process_all_block_addresses(crime_data)
+    crimes_with_block = geocoded_data[
+        geocoded_data["Block Address"].str.contains("BLOCK")
+    ]
+    crimes_with_no_block = geocoded_data[
+        ~geocoded_data["Block Address"].str.contains("BLOCK")
     ]
     for u, v, k, data in G.edges(keys=True, data=True):
         lookup_street_and_assign(data, crime_data)
