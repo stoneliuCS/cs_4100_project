@@ -2,10 +2,8 @@
 Crime dataset creation
 """
 
-import io
 from pathlib import Path
 import pandas as pd
-import requests
 
 CSV_PATH = Path(__file__).parent / "crime.csv"
 AGGREGATED_CRIMES_PATH = Path(__file__).parent / "aggregated_crimes.csv"
@@ -475,72 +473,6 @@ def assign_crime_scores(row):
     crime_scores = build_crime_scores()
     crime_score = crime_scores[crime]
     return crime_score
-
-
-def batch_geo_encoding_crimes(aggregated_crimes: pd.DataFrame) -> pd.DataFrame:
-    # Transform the aggregated_crimes to be in the format of the geo_encoding API
-    transformed_df = aggregated_crimes[["id", "Block Address", "City", "Zip Code"]]
-    transformed_df["state"] = "MA"
-    transformed_df = transformed_df.rename(
-        columns={"Block Address": "address", "City": "city", "Zip Code": "zip"}
-    )
-    transformed_df["address"] = transformed_df["address"].str.replace(
-        r"\d+ BLOCK ", "50 ", regex=True
-    )
-
-    def batch_csv(transformed_df: pd.DataFrame) -> list[Path]:
-        row_limit = 9999
-        num_rows = len(transformed_df)
-        csv_paths = []
-        for i in range(0, num_rows, row_limit):
-            start_row = i
-            end_row = min(i + row_limit, num_rows)
-            chunk_df = transformed_df.iloc[start_row:end_row]
-            output_csv_file = Path(__file__).parent / Path(
-                f"output_chunk_{i // row_limit + 1}.csv"
-            )
-            chunk_df.to_csv(output_csv_file)
-            csv_paths.append(output_csv_file)
-        return csv_paths
-
-    def single_csv_batch_req(csv_path: Path) -> pd.DataFrame:
-        files = {
-            "addressFile": (
-                str(csv_path),
-                open(csv_path, "rb"),
-                "text/csv",
-            )
-        }
-        params = {"benchmark": "Public_AR_Current"}
-        URL = "https://geocoding.geo.census.gov/geocoder/locations/addressbatch"
-        r = requests.post(URL, files=files, params=params)
-        if r.status_code == 200:
-            column_names = [
-                "row_id",
-                "Input_Address",
-                "Match_Status",
-                "Match_Type",
-                "Matched_Address",
-                "Coordinates",
-                "TIGER_Line_ID",
-                "Side",
-            ]
-            df = pd.read_csv(
-                io.StringIO(r.content.decode()), header=None, names=column_names
-            )
-            return df
-        else:
-            raise RuntimeError("Error:", r.status_code, r.text)
-
-    csv_paths = batch_csv(transformed_df)
-    geocoded_df = None
-    for csv_path in csv_paths:
-        batch_geocoded_df = single_csv_batch_req(csv_path)
-        if geocoded_df is None:
-            geocoded_df = batch_geocoded_df
-        else:
-            geocoded_df = pd.concat([geocoded_df, batch_geocoded_df], axis=0)
-    return geocoded_df
 
 
 def run_crime_dataset_creation():
