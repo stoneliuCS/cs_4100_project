@@ -13,6 +13,7 @@ import requests
 # census geocoding api endpoint
 GEOCODING_URL = "https://geocoding.geo.census.gov/geocoder/locations/addressbatch"
 BATCH_SIZE = 9999  # census api limit
+GEO_CODED_DATAFRAME_PATH = Path(__file__).parent / "geocoded_crimes.csv"
 
 
 def parse_block_address(block_address: str) -> dict:
@@ -320,6 +321,9 @@ def process_all_block_addresses(
 
     for each unique block address, generate samples, geocode them, and combine with crime scores.
     """
+    if GEO_CODED_DATAFRAME_PATH.exists():
+        return pd.read_csv(GEO_CODED_DATAFRAME_PATH)
+
     unique_blocks = aggregated_crimes[
         ["Block Address", "City", "Zip Code", "Neighborhood", "Interval of Day", "Crime Score"]
     ].copy()
@@ -378,6 +382,8 @@ def process_all_block_addresses(
     result_df = result_df[
         result_df["geocode_status"].isin(["Match", "Tie"]) & result_df["lat"].notna() & result_df["lon"].notna()
     ]
+
+    result_df.to_csv(GEO_CODED_DATAFRAME_PATH)
     
     return result_df
 
