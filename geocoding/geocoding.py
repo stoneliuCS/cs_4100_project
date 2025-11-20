@@ -1,80 +1,29 @@
-import requests
 import pandas as pd
 
-#URL = "https://geocoding.geo.census.gov/geocoder/locations/onelineaddress"
-URL = "https://geocoding.geo.census.gov/geocoder/locations/addressbatch"
+from data.crime_data import AGGREGATED_CRIMES_PATH
+import osmnx as os
 
-def _geocode_one_address(address):
-    params = {
-    "address": address,
-    "benchmark": "Public_AR_Current", 
-    "format": "json"}
-
-    response = requests.get(URL, params=params)
-    data = response.json()
-
-    matches = data["result"]["addressMatches"]
-
-    if matches:
-        coords = matches[0]["coordinates"]
-        return coords
-    else:
-        print(f"No match found for {address}")
-        return None
-    
-def reformat_csv(filename, saveFilename, sample_size=20):
-    # readin crime csv
-    df_crime = pd.read_csv(filename)
-
-    # re-format
-    df_addresses = pd.DataFrame({"id": range(1, len(df_crime)+1),
-                                "address": df_crime["Block Address"],
-                                "city": df_crime["City"],
-                                "state": ["MA"] * len(df_crime),
-                                "zip": df_crime["Zip Code"]})
-    
-    df_addresses = df_addresses.fillna("").apply(lambda x: x.astype(str).str.strip())
-
-    df_addresses = df_addresses[
-        (df_addresses["address"] != "") & (df_addresses["city"] != "")
-    ]
-
-    #df_sample = df_addresses.head(sample_size) 
-    #df_sample.to_csv("test.csv", index=False)
-
-    # save 
-    df_addresses.to_csv(saveFilename, index=False)
-    print(f"Saved")
-    
-
-def geocode_csv(filename):
-    files = {
-    'addressFile': (filename, open(filename, 'rb'), 'text/csv')
-    }
-    params = {
-        'benchmark': 'Public_AR_Current'
-    }
-
-    r = requests.post(URL, files=files, params=params)
-    if r.status_code == 200:
-        with open('geocoded_results.csv', 'wb') as f:
-            f.write(r.content)
-        print("Geocoded results saved to geocoded_results.csv")
-    else:
-        print("Error:", r.status_code, r.text)
+from geocoding.block_sampling import generate_block_samples, parse_block_address
 
 
-#address = "100 BLOCK WEBSTER ST, EAST BOSTON, MA 02128"
-#coords = _geocode_one_address(address)
-#print(coords)
+def geocode_row(row):
+    """
+    Assigns a crime score to the following row
+    """
 
-def main():
-    filename1 = "Boston_Incidents_View.csv"
-    filename2 = "formatted_address.csv"
-    reformat_csv(filename1, filename2)
+    def create_query(sample: str) -> str:
+        query = f"{sample} {row['City']} {row['Zip Code'].str.zfill(5)}"
+        breakpoint()
+        return query
 
-    geocode_csv("test.csv")
+    block_address = row["Block Address"]
+    vals = parse_block_address(block_address)
+    queries = generate_block_samples(
+        block_num=vals["block_num"], street_name=vals["street_name"], suffix="ST"
+    )
+    queries = list(map(create_query, queries))
 
-main()
-#df = pd.read_csv("Boston_Incidents_View.csv")
-#print(len(df))
+
+def geocode_aggregated_crimes(aggregated_crimes: pd.DataFrame) -> pd.DataFrame:
+    geocoded_data = aggregated_crimes.apply(geocode_row, axis=1)
+    return geocoded_data

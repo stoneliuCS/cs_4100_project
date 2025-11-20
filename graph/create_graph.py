@@ -24,7 +24,7 @@ def lookup_street_and_assign(edge_data, crime_data: pd.DataFrame) -> int | None:
         else:
             breakpoint()
 
-    print(edge_data)
+    breakpoint()
     street = edge_data["name"]
     scores: list[int | None] = []
     if type(street) == list:
@@ -39,14 +39,10 @@ def assign_crime_score_to_street_segment(
 ):
     # Filter out all the addresses with blocks.
     geocoded_data = bs.process_all_block_addresses(crime_data)
-    crimes_with_block = geocoded_data[
-        geocoded_data["Block Address"].str.contains("BLOCK")
-    ]
-    crimes_with_no_block = geocoded_data[
-        ~geocoded_data["Block Address"].str.contains("BLOCK")
-    ]
+    # Filter out all the addresses with matches
+    geocoded_crimes : pd.DataFrame = geocoded_data[geocoded_data["match_status"] == "Match"]
     for u, v, k, data in G.edges(keys=True, data=True):
-        lookup_street_and_assign(data, crime_data)
+        lookup_street_and_assign(data, geocoded_crimes)
 
 
 def create_graph(crime_data: pd.DataFrame, time_of_day: int):
