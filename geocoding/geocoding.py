@@ -10,7 +10,7 @@ GEOCODED_AGGREGATED_CRIMES = Path(__file__).parent / "geocoded_aggregated_crimes
 
 def geocode_row(row):
     """
-    Assigns a crime score to the following row
+    Geocodes the following row
     """
 
     def create_query(sample: str) -> str:

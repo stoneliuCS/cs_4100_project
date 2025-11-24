@@ -13,4 +13,5 @@ if __name__ == "__main__":
     aggregated_crimes = pd.read_csv(AGGREGATED_CRIMES_PATH)
     crime_data = geocode_aggregated_crimes(aggregated_crimes)
     time_of_day = 12
-    create_graph(crime_data, time_of_day)
+    bbox_buffer_size = 100
+    create_graph(crime_data, time_of_day, bbox_buffer_size)
