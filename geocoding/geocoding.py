@@ -73,4 +73,5 @@ def geocode_aggregated_crimes(aggregated_crimes: pd.DataFrame) -> pd.DataFrame:
         addresses_to_geocode[["Address", "Coordinates"]], on="Address", how="left"
     )
     sampled_aggregated_crimes.to_csv(GEOCODED_AGGREGATED_CRIMES)
+
     return aggregated_crimes
