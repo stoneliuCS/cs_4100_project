@@ -76,7 +76,7 @@ def assign_crime_score_to_street_segment(
         return x, y
 
     cleaned_crime_data["converted_coordinates"] = cleaned_crime_data[
-        "coordinates"
+        "Coordinates"
     ].apply(coord_transformer)
 
     total_edges = 0
@@ -108,3 +108,5 @@ def create_graph(crime_data: pd.DataFrame, time_of_day: int, bbox_buffer_size: i
     G = assign_crime_score_to_street_segment(
         crime_data, G, time_of_day, bbox_buffer_size
     )
+    ox.save_graphml(G, "boston_walk_crime.graphml")
+    return G
