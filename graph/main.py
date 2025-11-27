@@ -1,8 +1,17 @@
 import pandas as pd
-
-from geocoding.geocoding import geocode_aggregated_crimes
-from graph.create_graph import create_graph, plot_kde_graph
+from geocoding.geocoding import compute_geocoding_stats, geocode_aggregated_crimes
+from graph.create_graph import (
+    create_graph,
+    add_risk_cost_weights,
+    convert_starting_and_end_coords,
+)
+from graph.visualize_graph import show_path_and_kde_full_and_zoom
 from data.crime_data import AGGREGATED_CRIMES_PATH, run_crime_dataset_creation
+import networkx as nx
+
+STARTING_DEST = "177 Massachusetts Ave, Boston, MA 02115"
+ENDING_DEST = "82 Hillside St, Boston, MA 02120"
+TIME_OF_DAY = 20  # The time of day in hours (military time)
 
 
 if __name__ == "__main__":
@@ -11,19 +20,29 @@ if __name__ == "__main__":
 
     # Geocoding crime dataset
     aggregated_crimes = pd.read_csv(AGGREGATED_CRIMES_PATH)
-    time_of_day = 12
-    bbox_buffer_size = 10
     crime_data = geocode_aggregated_crimes(aggregated_crimes)
 
-    # Print stats on geocoding
-    num_failed = crime_data["Coordinates"].isna().sum()
-    num_success = crime_data["Coordinates"].notna().sum()
-    total = len(crime_data)
-    failed_pct = num_failed / total * 100
-    success_pct = num_success / total * 100
-    print(f"Failed geocodes: {num_failed} ({failed_pct:.2f}%)")
-    print(f"Successful geocodes: {num_success} ({success_pct:.2f}%)")
+    # Helpful to show how well the geocoding performed
+    compute_geocoding_stats(crime_data)
 
     # Finally use a KDE based approach for risk calculation
-    G, attr_name = create_graph(crime_data, time_of_day)
-    plot_kde_graph(G, attr_name)
+    G, kde_attr = create_graph(crime_data, TIME_OF_DAY)
+
+    # Add the risk costs to each of the distances
+    risk_attr = add_risk_cost_weights(G, kde_attr)
+
+    # Find the closest nodes from the given starting and ending addresses
+    orig_node, dest_node = convert_starting_and_end_coords(
+        STARTING_DEST, ENDING_DEST, G
+    )
+
+    # Run astar_path to find the shortest path
+    path_nodes = nx.astar_path(
+        G, source=orig_node, target=dest_node, weight=risk_attr, heuristic=None
+    )
+
+    # Finally plot the heatmap of our KDE, our a-star path together so we can see what our model predicts as the
+    # safest root!
+    show_path_and_kde_full_and_zoom(
+        G, path_nodes, risk_attr, kde_attr, hour_label=f"{TIME_OF_DAY}"
+    )

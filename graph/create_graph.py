@@ -3,13 +3,12 @@ from geopandas import gpd
 from networkx.classes.multidigraph import MultiDiGraph
 import osmnx as ox
 import pandas as pd
-import pyproj
-from shapely.geometry import LineString
+from shapely.geometry import LineString, Point
 import networkx as nx
 from sklearn.neighbors import KernelDensity
 import numpy as np
 import logging
-import matplotlib.pyplot as plt
+from geocoding.geocoding import geocode_row
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -28,86 +27,32 @@ def download_boston_walk_graph():
     ox.save_graphml(G_proj, filepath=GRAPH_PATH)
 
 
-def lookup_street_and_assign(
-    edge_data,
-    crime_data: pd.DataFrame,
-    G: MultiDiGraph,
-    time_of_day: int,
-    bbox_buffer_size: int,
-) -> int | None:
-    def lookup(coords, minx, miny, maxx, maxy):
-        x = coords[0]
-        y = coords[1]
-        return minx <= x <= maxx and miny <= y <= maxy
-
-    def time_in_interval(interval_str, hour):
-        start, end = interval_str.split("-")
-        start = int(start)
-        end = int(end)
-        return start <= hour <= end
-
-    u_node = G.nodes[edge_data[0]]
-    v_node = G.nodes[edge_data[1]]
-    u_lat, u_lng = u_node["y"], u_node["x"]
-    v_lat, v_lng = v_node["y"], v_node["x"]
-    bbox = LineString([(u_lng, u_lat), (v_lng, v_lat)])
-    bbox_with_buffer = bbox.buffer(bbox_buffer_size)  # Add a buffer of 100 meters
-    minx, miny, maxx, maxy = bbox_with_buffer.bounds
-    crimes_in_bbox = crime_data[
-        crime_data["converted_coordinates"].apply(
-            lambda coord: lookup(coord, minx, miny, maxx, maxy)
-        )
-    ]
-    time_of_day_bucket = crimes_in_bbox["Interval of Day"]
-    crimes_in_time_window = crimes_in_bbox[
-        time_of_day_bucket.apply(
-            lambda interval: time_in_interval(interval, time_of_day)
-        )
-    ]
-    if len(crimes_in_time_window) == 0:
-        return None
-    else:
-        mean_score = crimes_in_time_window["Crime Score"].mean()
-        return mean_score
-
-
-def assign_crime_score_to_street_segment(
-    crime_data: pd.DataFrame, G: MultiDiGraph, time_of_day: int, bbox_buffer_size: int
+def convert_starting_and_end_coords(
+    starting_address, ending_address: str, G: MultiDiGraph
 ):
-    cleaned_crime_data = crime_data.dropna()
-    # convert the latitude and longitude into x and y values
-    graph_crs = G.graph["crs"]
-    transformer = pyproj.Transformer.from_crs("EPSG:4326", graph_crs, always_xy=True)
+    """
+    Giving a starting and ending address computes the nearest nodes in G
+    """
+    lat_start, lng_start = geocode_row(starting_address)
+    lat_end, lng_end = geocode_row(ending_address)
 
-    def coord_transformer(coord_str):
-        coord_str = coord_str.strip("()")
-        lat_str, lon_str = coord_str.split(",")
-        lat = float(lat_str.strip())
-        lon = float(lon_str.strip())
-        x, y = transformer.transform(lon, lat)
-        return x, y
+    graph_crs = G.graph.get("crs", "EPSG:4326")
 
-    cleaned_crime_data["converted_coordinates"] = cleaned_crime_data[
-        "Coordinates"
-    ].apply(coord_transformer)
+    pts = gpd.GeoDataFrame(
+        geometry=[
+            Point(lng_start, lat_start),
+            Point(lng_end, lat_end),
+        ],
+        crs="EPSG:4326",
+    ).to_crs(graph_crs)
 
-    total_edges = 0
-    assigned_edges = 0
+    start_pt = pts.geometry.iloc[0]
+    end_pt = pts.geometry.iloc[1]
 
-    for u, v, k, data in G.edges(keys=True, data=True):
-        total_edges += 1
-        score = lookup_street_and_assign(
-            (u, v, k, data), cleaned_crime_data, G, time_of_day, bbox_buffer_size
-        )
-        G[u][v][k]["crime_score"] = score
-        if score is not None:
-            print(f"Successfully assigned crime score: {score}")
-            assigned_edges += 1
+    orig_node = ox.nearest_nodes(G, X=start_pt.x, Y=start_pt.y)
+    dest_node = ox.nearest_nodes(G, X=end_pt.x, Y=end_pt.y)
 
-    print(
-        f"Successfully assigned crime scores to {assigned_edges} out of {total_edges} edges ({assigned_edges / total_edges * 100:.1f}%)"
-    )
-    return G
+    return orig_node, dest_node
 
 
 def run_kde_on_graph(
@@ -189,31 +134,43 @@ def create_attr_name(time_of_day: int):
     return attr_name
 
 
-def plot_kde_graph(G: MultiDiGraph, attr_name: str):
-    # Get the KDE values for edges, defaulting to 0 if missing
-    kde_vals = np.array(
-        [d.get(attr_name, 0.0) for _, _, _, d in G.edges(keys=True, data=True)]
-    )
+def coerce_kde_value(value):
+    """GraphML stores edge attributes as strings; convert them to floats."""
+    if value is None:
+        return 0.0
+    if isinstance(value, (int, float, np.integer, np.floating)):
+        return float(value)
+    try:
+        value_str = str(value).strip()
+        return float(value_str) if value_str else 0.0
+    except (TypeError, ValueError):
+        logger.debug("Unable to parse KDE value %r for %s", value, attr_name)
+        return 0.0
 
-    vmax = kde_vals.max() if kde_vals.size > 0 else 0
-    if vmax > 0:
-        kde_norm = kde_vals / vmax
-    else:
-        kde_norm = kde_vals
 
-    cmap = plt.cm.inferno
-    edge_colors = [cmap(v) for v in kde_norm]
+def add_risk_cost_weights(G, risk_attr: str, alpha: float = 3.0):
+    """
+    Adds a risk cost associated with each edge and returns the weight attribute used for a_star
 
-    fig, ax = ox.plot_graph(
-        G,
-        node_size=0,
-        edge_color=edge_colors,
-        edge_linewidth=1,
-        bgcolor="white",
-        show=False,
-        close=False,
-    )
-    plt.show()
+    The cost of an edge is dependent on its normalized risk and weights this is to prevent paths that
+    are not very feasible.
+    """
+    risks = [
+        coerce_kde_value(d.get(risk_attr, 0.0))
+        for _, _, _, d in G.edges(keys=True, data=True)
+    ]
+    max_risk = max(risks) if risks else 0.0
+    if max_risk == 0:
+        max_risk = 1.0
+
+    for _, _, _, data in G.edges(keys=True, data=True):
+        length = data.get("length", 1.0)
+        risk = coerce_kde_value(data.get(risk_attr, 0.0))
+        norm_risk = risk / max_risk
+        cost = length * (1.0 + alpha * norm_risk)
+        data["risk_cost"] = cost
+
+    return "risk_cost"
 
 
 def create_graph(crime_data: pd.DataFrame, time_of_day: int):

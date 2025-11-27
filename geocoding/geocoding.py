@@ -57,6 +57,17 @@ def format_aggregated_crimes_for_geocoding(
     return all_crimes
 
 
+def compute_geocoding_stats(crime_data):
+    # Print stats on geocoding
+    num_failed = crime_data["Coordinates"].isna().sum()
+    num_success = crime_data["Coordinates"].notna().sum()
+    total = len(crime_data)
+    failed_pct = num_failed / total * 100
+    success_pct = num_success / total * 100
+    print(f"Failed geocodes: {num_failed} ({failed_pct:.2f}%)")
+    print(f"Successful geocodes: {num_success} ({success_pct:.2f}%)")
+
+
 def geocode_aggregated_crimes(aggregated_crimes: pd.DataFrame) -> pd.DataFrame:
     if GEOCODED_AGGREGATED_CRIMES.exists():
         return pd.read_csv(GEOCODED_AGGREGATED_CRIMES)
