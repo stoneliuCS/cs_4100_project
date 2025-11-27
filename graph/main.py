@@ -11,7 +11,7 @@ import networkx as nx
 
 STARTING_DEST = "177 Massachusetts Ave, Boston, MA 02115"
 ENDING_DEST = "82 Hillside St, Boston, MA 02120"
-TIME_OF_DAY = 20  # The time of day in hours (military time)
+TIME_OF_DAY = 16  # The time of day in hours (military time)
 
 
 if __name__ == "__main__":

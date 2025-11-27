@@ -91,12 +91,9 @@ def run_kde_on_graph(
     bucket_proj = bucket_gdf.to_crs(target_crs)
     bucket_proj = bucket_proj[bucket_proj.geometry.notna()]
     X = np.vstack([bucket_proj.geometry.x, bucket_proj.geometry.y]).T
-    if "Crime Score" in bucket_proj.columns:
-        weights = bucket_proj["Crime Score"].astype(float).values
-        weights = np.nan_to_num(weights, nan=0.0)
-        weights[weights < 0] = 0.0
-    else:
-        weights = None
+    weights = bucket_proj["Crime Score"].astype(float).values
+    weights = np.nan_to_num(weights, nan=0.0)
+    weights[weights < 0] = 0.0
     kde = KernelDensity(bandwidth=bandwidth, kernel="gaussian")
     kde.fit(X, sample_weight=weights)
 
