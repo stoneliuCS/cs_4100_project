@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 
 GRAPH_PATH = Path(__file__).parent / Path("boston_walk.graphml")
-CRIME_GRAPH_PATH = Path(__file__).parent / Path("boston_walk_crime.graphml")
+CRIME_GRAPH_PATH = Path(__file__).parent / Path("boston_walk_crimes")
 
 
 def download_boston_walk_graph():
