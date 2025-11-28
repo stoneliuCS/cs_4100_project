@@ -8,6 +8,7 @@ from graph.create_graph import (
 from graph.visualize_graph import show_path_and_kde_full_and_zoom
 from data.crime_data import AGGREGATED_CRIMES_PATH, run_crime_dataset_creation
 import networkx as nx
+import osmnx as ox
 
 STARTING_DEST = "177 Massachusetts Ave, Boston, MA 02115"
 ENDING_DEST = "82 Hillside St, Boston, MA 02120"
@@ -37,8 +38,13 @@ if __name__ == "__main__":
     )
 
     # Run astar_path to find the shortest path
+    def heuristic(u, v):
+        node_u = G.nodes[u]
+        node_v = G.nodes[v]
+        return ox.distance.euclidean(node_u["y"], node_u["x"], node_v["y"], node_v["x"])
+    
     path_nodes = nx.astar_path(
-        G, source=orig_node, target=dest_node, weight=risk_attr, heuristic=None
+        G, source=orig_node, target=dest_node, weight=risk_attr, heuristic=heuristic
     )
 
     # Finally plot the heatmap of our KDE, our a-star path together so we can see what our model predicts as the
