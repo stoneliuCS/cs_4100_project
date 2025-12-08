@@ -10,9 +10,9 @@ from graph.visualize_graph import show_path_and_kde_full_and_zoom
 import networkx as nx
 import math
 
-STARTING_DEST = "177 Massachusetts Ave, Boston, MA 02115"
+STARTING_DEST = "24 Beacon St, Boston, MA 02133"
 ENDING_DEST = "82 Hillside St, Boston, MA 02120"
-TIME_OF_DAY = 12  # The time of day in hours (military time)
+TIME_OF_DAY = 14  # The time of day in hours (military time)
 
 # Use the geocoded file directly
 GEOCODED_CRIMES_PATH = Path(__file__).parent.parent / "geocoding" / "geocoded_aggregated_crimes.csv"
