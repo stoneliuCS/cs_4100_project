@@ -5,14 +5,12 @@
 
 from pathlib import Path
 import pandas as pd
-#import math
 import networkx as nx
 
 from graph.create_graph import (
     create_graph,
     add_risk_cost_weights,
     convert_starting_and_end_coords,
-    coerce_kde_value,
 )
 from graph.main import (
     euclidean_distance_heuristic,
@@ -23,9 +21,9 @@ TIME_OF_DAY = 14
 ROUTE_PAIRS = [("24 Beacon St, Boston, MA 02133", "82 Hillside St, Boston, MA 02120"),
                ("82 Hillside St, Boston, MA 02120", "360 Huntington Ave, Boston, MA 02115"),
                ("744 Columbus Ave., Boston, MA 02120", "360 Huntington Ave, Boston, MA 02115"),
-               ("260 Franklin St, Boston, MA 02110", "88 Harrison Ave, Boston, MA 02111"),
-               ("175 Federal St, Boston, MA 02110", "175 Federal St, Boston, MA 02110"),
-               ("25 Tyler St, Boston, MA 02111", "1600 Washington St, Boston, MA 02118"),
+               ("175 Federal St, Boston, MA 02110", "70 Kneeland St, Boston, MA 02111"),
+               ("175 Federal St, Boston, MA 02110", "50 Beach St, Boston, MA 02111"),
+               ("88 Harrison Ave, Boston, MA 02111", "850 Harrison Ave, Boston, MA 02118"),
                ("170 Newbury St, Boston, MA 02116", "1490 Tremont St, Boston, MA 02120"),
                ("360 Huntington Ave, Boston, MA 02115", "95 Saint Stephen St, Boston, MA 02115"),
                ("77 Massachusetts Ave, Cambridge, MA 02139", "800 Boylston St, Boston, MA 02199"),
